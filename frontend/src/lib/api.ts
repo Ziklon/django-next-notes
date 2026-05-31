@@ -1,14 +1,34 @@
+import { clearTokens, getAccessToken, getRefreshToken, setTokens } from "./auth";
 import type { Category, Note, NoteInput, Paginated } from "./types";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
+  const token = getAccessToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(init?.headers as Record<string, string> | undefined),
+  };
+
+  let res = await fetch(`${API_URL}${path}`, {
     ...init,
+    headers,
+    cache: "no-store",
   });
+
+  if (res.status === 401) {
+    const refreshed = await tryRefresh();
+    if (refreshed) {
+      headers.Authorization = `Bearer ${getAccessToken()}`;
+      res = await fetch(`${API_URL}${path}`, { ...init, headers, cache: "no-store" });
+    } else {
+      clearTokens();
+      window.location.href = "/login";
+      throw new Error("Session expired. Please log in again.");
+    }
+  }
 
   if (!res.ok) {
     let detail = `Request failed (${res.status})`;
@@ -20,8 +40,25 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error(detail);
   }
 
-  // 204 No Content (e.g. DELETE) has no body to parse.
   return (res.status === 204 ? undefined : await res.json()) as T;
+}
+
+async function tryRefresh(): Promise<boolean> {
+  const refresh = getRefreshToken();
+  if (!refresh) return false;
+  try {
+    const res = await fetch(`${API_URL}/auth/token/refresh/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh }),
+    });
+    if (!res.ok) return false;
+    const { access } = await res.json();
+    setTokens(access, refresh);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export const api = {
@@ -29,8 +66,7 @@ export const api = {
     request<Paginated<Category>>("/categories/").then((p) => p.results),
 
   listNotes: (categoryId?: number | null) => {
-    const query =
-      categoryId != null ? `?category=${categoryId}` : "";
+    const query = categoryId != null ? `?category=${categoryId}` : "";
     return request<Paginated<Note>>(`/notes/${query}`).then((p) => p.results);
   },
 

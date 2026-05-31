@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 
@@ -23,6 +24,13 @@ class Category(models.Model):
 class Note(models.Model):
     """A single note that optionally belongs to a category."""
 
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="notes",
+    )
     title = models.CharField(max_length=255)
     content = models.TextField(blank=True)
     category = models.ForeignKey(

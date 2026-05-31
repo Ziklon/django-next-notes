@@ -1,41 +1,26 @@
 "use client";
 
 import { useCallback, useEffect } from "react";
-import type { Category, Note, NoteInput } from "@/lib/types";
 import { formatLastEdited } from "@/lib/date";
+import { useBoardContext } from "@/contexts/BoardContext";
 import { useNoteEditor } from "@/hooks/useNoteEditor";
 import NoteToolbar from "./NoteToolbar";
 import NoteEditor from "./NoteEditor";
 import NotePreview from "./NotePreview";
 
-interface NoteViewProps {
-  note: Note | null; // null => create mode
-  categories: Category[];
-  onClose: () => void;
-  /** Persist the note. `id` is null when creating. Returns the saved note. */
-  onSave: (data: NoteInput, id: number | null) => Promise<Note>;
-  onDelete?: (note: Note) => Promise<void>;
-}
+export default function NoteView() {
+  const { editing, categories, closeAndRefresh, saveNote, deleteNote } =
+    useBoardContext();
 
-/**
- * Full-screen note overlay. Composition only: state and persistence live in
- * useNoteEditor; the toolbar, editor and preview are separate components.
- */
-export default function NoteView({
-  note,
-  categories,
-  onClose,
-  onSave,
-  onDelete,
-}: NoteViewProps) {
-  const editor = useNoteEditor(note, categories, onSave);
+  // editing is Note | null here (undefined means NoteView isn't rendered)
+  const note = editing ?? null;
+  const editor = useNoteEditor(note, categories, saveNote);
 
   const handleClose = useCallback(async () => {
     await editor.persist();
-    onClose();
-  }, [editor, onClose]);
+    closeAndRefresh();
+  }, [editor, closeAndRefresh]);
 
-  // Close on Escape (persists first).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") handleClose();
@@ -52,9 +37,9 @@ export default function NoteView({
         onChangeCategory={editor.changeCategory}
         mode={editor.mode}
         onToggleMode={editor.toggleMode}
-        canDelete={Boolean(editor.current && onDelete)}
+        canDelete={Boolean(editor.current)}
         onDelete={() => {
-          if (editor.current && onDelete) onDelete(editor.current);
+          if (editor.current) deleteNote(editor.current);
         }}
         onClose={handleClose}
       />

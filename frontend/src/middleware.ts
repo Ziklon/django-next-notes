@@ -1,0 +1,25 @@
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+
+const AUTH_PAGES = ["/login", "/signup"];
+
+export function middleware(request: NextRequest) {
+  const token = request.cookies.get("access_token")?.value;
+  const { pathname } = request.nextUrl;
+
+  const isAuthPage = AUTH_PAGES.some((p) => pathname.startsWith(p));
+
+  if (!token && !isAuthPage) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  if (token && isAuthPage) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+};

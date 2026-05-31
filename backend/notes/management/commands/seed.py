@@ -1,10 +1,14 @@
 """Seed the database with sample data that mirrors the design prototype."""
 from datetime import timedelta
 
+from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from notes.models import Category, Note
+
+DEMO_EMAIL = "demo@notes.app"
+DEMO_PASSWORD = "demo1234"
 
 CATEGORIES = [
     {"name": "Random Thoughts", "color": "#F0A875"},
@@ -101,6 +105,15 @@ class Command(BaseCommand):
             Category.objects.all().delete()
             self.stdout.write("Cleared existing data.")
 
+        demo_user, created_user = User.objects.get_or_create(
+            username=DEMO_EMAIL,
+            defaults={"email": DEMO_EMAIL},
+        )
+        if created_user:
+            demo_user.set_password(DEMO_PASSWORD)
+            demo_user.save()
+            self.stdout.write(f"Created demo user: {DEMO_EMAIL} / {DEMO_PASSWORD}")
+
         cats = {}
         for c in CATEGORIES:
             obj, _ = Category.objects.get_or_create(
@@ -116,11 +129,11 @@ class Command(BaseCommand):
             note, was_created = Note.objects.get_or_create(
                 title=n["title"],
                 category=cats[n["category"]],
+                user=demo_user,
                 defaults={"content": n["content"]},
             )
             if was_created:
                 ts = now - timedelta(days=n["days_ago"])
-                # auto_now / auto_now_add fields need an explicit update().
                 Note.objects.filter(pk=note.pk).update(created_at=ts, updated_at=ts)
                 created += 1
 

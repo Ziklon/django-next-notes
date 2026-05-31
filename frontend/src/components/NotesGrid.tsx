@@ -1,39 +1,41 @@
 "use client";
 
-import type { Note } from "@/lib/types";
+import { useBoardContext } from "@/contexts/BoardContext";
 import NoteCard from "./NoteCard";
+import NoteCardSkeleton from "./NoteCardSkeleton";
 
-interface NotesGridProps {
-  notes: Note[];
-  loading: boolean;
-  error: string | null;
-  onOpen: (note: Note) => void;
-}
+const SKELETON_COUNT = 6;
 
-/** The notes board area: loading / error / empty states and the card grid. */
-export default function NotesGrid({ notes, loading, error, onOpen }: NotesGridProps) {
+export default function NotesGrid() {
+  const { notes, loading, error, openNote } = useBoardContext();
+  const initialLoad = loading && notes.length === 0;
+
   return (
     <section className="flex-1">
-      {loading && notes.length === 0 && (
-        <p className="text-[var(--muted)]">Loading notes...</p>
-      )}
-
       {error && (
         <p role="alert" className="text-red-600">
           {error}
         </p>
       )}
 
-      {!loading && !error && notes.length === 0 && (
+      {!error && initialLoad && (
+        <div className="notes-masonry">
+          {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+            <NoteCardSkeleton key={i} />
+          ))}
+        </div>
+      )}
+
+      {!error && !initialLoad && notes.length === 0 && (
         <p className="text-[var(--muted)]">
           No notes yet. Click &ldquo;New Note&rdquo; to create one.
         </p>
       )}
 
-      {!loading && !error && notes.length > 0 && (
-        <div className="notes-masonry">
+      {!error && !initialLoad && notes.length > 0 && (
+        <div className={`notes-masonry ${loading ? "opacity-60 transition-opacity" : ""}`}>
           {notes.map((note) => (
-            <NoteCard key={note.id} note={note} onClick={onOpen} />
+            <NoteCard key={note.id} note={note} onClick={openNote} />
           ))}
         </div>
       )}
