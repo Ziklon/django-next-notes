@@ -51,6 +51,7 @@ test.describe("Authentication", () => {
     await expect(page).toHaveURL("/");
 
     // Log out and try to register again with the same email
+    await page.click('button[aria-label="Open user menu"]');
     await page.click('button:has-text("Log out")');
     await page.goto("/signup");
     await page.fill('[placeholder="Email address"]', email);
@@ -78,6 +79,7 @@ test.describe("Authentication", () => {
     await page.click('button:has-text("Log In")');
     await expect(page).toHaveURL("/");
 
+    await page.click('button[aria-label="Open user menu"]');
     await page.click('button:has-text("Log out")');
     await expect(page).toHaveURL("/login");
 

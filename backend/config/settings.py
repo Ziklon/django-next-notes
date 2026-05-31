@@ -4,6 +4,7 @@ Django settings for the Notes app backend.
 The database is configured from the DATABASE_URL environment variable.
 Defaults to a local Postgres instance matching docker compose credentials.
 """
+from datetime import timedelta
 from pathlib import Path
 import os
 
@@ -117,8 +118,6 @@ REST_FRAMEWORK = {
         "rest_framework.renderers.BrowsableAPIRenderer",
     ],
 }
-
-from datetime import timedelta
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),

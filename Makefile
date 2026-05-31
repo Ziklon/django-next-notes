@@ -30,12 +30,14 @@ logs: ## Tail logs from all services
 ## ---- Tests ----
 test: test-backend test-frontend ## Run backend and frontend test suites
 
-test-backend: ## Run Django tests against a PostgreSQL container (fails under 95%)
+test-backend: ## Lint and run Django tests with coverage (fails under 95%)
+	cd backend && uv run ruff check .
 	cd backend && uv run coverage run -m pytest
 	cd backend && uv run coverage report
 
-test-frontend: ## Run Jest tests with coverage (installs deps if needed)
+test-frontend: ## Lint and run Jest tests with coverage (installs deps if needed)
 	cd frontend && [ -d node_modules ] || pnpm install
+	cd frontend && pnpm next lint
 	cd frontend && pnpm test:coverage
 
 e2e: ## Run Playwright end-to-end tests (starts the Docker stack automatically)
