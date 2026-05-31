@@ -19,15 +19,15 @@ export default defineConfig({
     },
   ],
 
-  // docker compose up --build starts Postgres, runs migrations, seeds the demo
-  // user, and serves both the backend and frontend. Playwright waits for the
-  // frontend URL to respond before running any tests.
-  // Locally an already-running stack is reused; in CI it always rebuilds.
+  // The stack (Postgres + backend + frontend) is started externally via
+  // `docker compose up --build -d` — either by the CI workflow or manually
+  // before running tests locally. reuseExistingServer is always true so
+  // Playwright never tries to start a second instance on the same port.
   webServer: {
     command: "docker compose up --build -d",
     cwd: "..",
     url: "http://localhost:3000",
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true,
     timeout: 180_000,
   },
 });
