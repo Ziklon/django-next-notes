@@ -35,7 +35,7 @@ test-frontend: ## Run Jest tests with coverage (installs deps if needed)
 	cd frontend && [ -d node_modules ] || pnpm install
 	cd frontend && pnpm test:coverage
 
-e2e: ## Run Playwright end-to-end tests (requires both servers running)
+e2e: ## Run Playwright end-to-end tests (starts the Docker stack automatically)
 	cd e2e && [ -d node_modules ] || pnpm install
 	cd e2e && pnpm test
 

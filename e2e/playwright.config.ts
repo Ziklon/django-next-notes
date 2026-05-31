@@ -19,17 +19,15 @@ export default defineConfig({
     },
   ],
 
-  // Start both servers when they are not already running.
-  webServer: [
-    {
-      command: "cd ../backend && uv run python manage.py runserver 8000 --noreload",
-      port: 8000,
-      reuseExistingServer: true,
-    },
-    {
-      command: "cd ../frontend && pnpm dev",
-      port: 3000,
-      reuseExistingServer: true,
-    },
-  ],
+  // docker compose up --build starts Postgres, runs migrations, seeds the demo
+  // user, and serves both the backend and frontend. Playwright waits for the
+  // frontend URL to respond before running any tests.
+  // Locally an already-running stack is reused; in CI it always rebuilds.
+  webServer: {
+    command: "docker compose up --build -d",
+    cwd: "..",
+    url: "http://localhost:3000",
+    reuseExistingServer: !process.env.CI,
+    timeout: 180_000,
+  },
 });
