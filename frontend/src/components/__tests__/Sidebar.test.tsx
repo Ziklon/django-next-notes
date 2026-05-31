@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Sidebar from "@/components/Sidebar";
 import type { Category } from "@/lib/types";
+import { makeBoardState } from "@/test-utils";
 
 const categories: Category[] = [
   { id: 1, name: "Random Thoughts", color: "#F0A875", note_count: 3, created_at: "" },
@@ -9,31 +10,49 @@ const categories: Category[] = [
   { id: 3, name: "Personal", color: "#9CB7AE", note_count: 1, created_at: "" },
 ];
 
+const mockSetSelected = jest.fn();
+
+jest.mock("@/contexts/BoardContext", () => ({
+  useBoardContext: jest.fn(),
+}));
+
+import { useBoardContext } from "@/contexts/BoardContext";
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  (useBoardContext as jest.Mock).mockReturnValue(
+    makeBoardState({ categories, selectedCategoryId: null, setSelectedCategoryId: mockSetSelected })
+  );
+});
+
 describe("Sidebar", () => {
   it("lists categories with their note counts", () => {
-    render(
-      <Sidebar categories={categories} selectedCategoryId={null} onSelect={() => {}} />
-    );
+    render(<Sidebar />);
     expect(screen.getByText("All Categories")).toBeInTheDocument();
     expect(screen.getByText("School")).toBeInTheDocument();
     expect(screen.getByText("1")).toBeInTheDocument();
   });
 
-  it("selects a category on click", async () => {
-    const onSelect = jest.fn();
-    render(
-      <Sidebar categories={categories} selectedCategoryId={null} onSelect={onSelect} />
+  it("shows skeleton items while loading with no categories", () => {
+    (useBoardContext as jest.Mock).mockReturnValue(
+      makeBoardState({ categories: [], loading: true })
     );
+    const { container } = render(<Sidebar />);
+    expect(container.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
+  });
+
+  it("selects a category on click", async () => {
+    render(<Sidebar />);
     await userEvent.click(screen.getByText("School"));
-    expect(onSelect).toHaveBeenCalledWith(2);
+    expect(mockSetSelected).toHaveBeenCalledWith(2);
   });
 
   it("deselects when the active category is clicked again", async () => {
-    const onSelect = jest.fn();
-    render(
-      <Sidebar categories={categories} selectedCategoryId={2} onSelect={onSelect} />
+    (useBoardContext as jest.Mock).mockReturnValue(
+      makeBoardState({ categories, selectedCategoryId: 2, setSelectedCategoryId: mockSetSelected })
     );
+    render(<Sidebar />);
     await userEvent.click(screen.getByText("School"));
-    expect(onSelect).toHaveBeenCalledWith(null);
+    expect(mockSetSelected).toHaveBeenCalledWith(null);
   });
 });

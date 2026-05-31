@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import NotesGrid from "@/components/NotesGrid";
 import type { Note } from "@/lib/types";
+import { makeBoardState } from "@/test-utils";
 
 const notes: Note[] = [
   {
@@ -15,26 +16,49 @@ const notes: Note[] = [
   },
 ];
 
+const mockOpenNote = jest.fn();
+
+jest.mock("@/contexts/BoardContext", () => ({
+  useBoardContext: jest.fn(),
+}));
+
+import { useBoardContext } from "@/contexts/BoardContext";
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  (useBoardContext as jest.Mock).mockReturnValue(
+    makeBoardState({ notes: [], loading: false, error: null, openNote: mockOpenNote })
+  );
+});
+
 describe("NotesGrid", () => {
-  it("shows the loading message only when empty", () => {
-    render(<NotesGrid notes={[]} loading error={null} onOpen={() => {}} />);
-    expect(screen.getByText("Loading notes...")).toBeInTheDocument();
+  it("shows skeleton cards during initial load", () => {
+    (useBoardContext as jest.Mock).mockReturnValue(
+      makeBoardState({ notes: [], loading: true })
+    );
+    const { container } = render(<NotesGrid />);
+    expect(container.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
   });
 
   it("shows the empty state when there are no notes", () => {
-    render(<NotesGrid notes={[]} loading={false} error={null} onOpen={() => {}} />);
-    expect(screen.getByText(/No notes yet/)).toBeInTheDocument();
+    render(<NotesGrid />);
+    expect(screen.getByText(/no notes yet/i)).toBeInTheDocument();
   });
 
   it("renders an error message", () => {
-    render(<NotesGrid notes={[]} loading={false} error="Boom" onOpen={() => {}} />);
+    (useBoardContext as jest.Mock).mockReturnValue(
+      makeBoardState({ error: "Boom" })
+    );
+    render(<NotesGrid />);
     expect(screen.getByRole("alert")).toHaveTextContent("Boom");
   });
 
-  it("renders cards and opens one on click", async () => {
-    const onOpen = jest.fn();
-    render(<NotesGrid notes={notes} loading={false} error={null} onOpen={onOpen} />);
+  it("renders cards and calls openNote on click", async () => {
+    (useBoardContext as jest.Mock).mockReturnValue(
+      makeBoardState({ notes, loading: false, openNote: mockOpenNote })
+    );
+    render(<NotesGrid />);
     await userEvent.click(screen.getByText("Grocery List"));
-    expect(onOpen).toHaveBeenCalledWith(notes[0]);
+    expect(mockOpenNote).toHaveBeenCalledWith(notes[0]);
   });
 });

@@ -1,8 +1,8 @@
 # Notes App - common developer commands
 # Usage: make <target>
 
-.PHONY: help start up down build logs test test-backend test-frontend \
-        migrate seed backend-install frontend-install clean
+.PHONY: help start up down build logs test test-backend test-frontend e2e \
+        migrate seed backend-install frontend-install e2e-install clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -34,6 +34,14 @@ test-backend: ## Run Django tests with coverage (fails under 95%)
 test-frontend: ## Run Jest tests with coverage (installs deps if needed)
 	cd frontend && [ -d node_modules ] || pnpm install
 	cd frontend && pnpm test:coverage
+
+e2e: ## Run Playwright end-to-end tests (requires both servers running)
+	cd e2e && [ -d node_modules ] || pnpm install
+	cd e2e && pnpm test
+
+e2e-install: ## Install Playwright and browsers
+	cd e2e && pnpm install
+	cd e2e && pnpm exec playwright install chromium
 
 ## ---- Backend helpers (local, non-Docker) ----
 migrate: ## Apply database migrations

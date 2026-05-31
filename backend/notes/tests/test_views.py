@@ -1,14 +1,23 @@
+from django.contrib.auth.models import User
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from notes.models import Category, Note
 
 
+def make_user(username="test@example.com", password="pass1234"):
+    return User.objects.create_user(
+        username=username, email=username, password=password
+    )
+
+
 class CategoryAPITests(APITestCase):
     def setUp(self):
+        self.user = make_user()
+        self.client.force_authenticate(user=self.user)
         self.school = Category.objects.create(name="School", color="#F4CE7B")
-        Note.objects.create(title="A", category=self.school)
-        Note.objects.create(title="B", category=self.school)
+        Note.objects.create(title="A", category=self.school, user=self.user)
+        Note.objects.create(title="B", category=self.school, user=self.user)
 
     def test_list_includes_note_count(self):
         resp = self.client.get("/api/categories/")
@@ -26,13 +35,15 @@ class CategoryAPITests(APITestCase):
 
 class NoteAPITests(APITestCase):
     def setUp(self):
+        self.user = make_user()
+        self.client.force_authenticate(user=self.user)
         self.school = Category.objects.create(name="School")
         self.personal = Category.objects.create(name="Personal")
         self.n1 = Note.objects.create(
-            title="Meeting", content="agenda", category=self.school
+            title="Meeting", content="agenda", category=self.school, user=self.user
         )
         self.n2 = Note.objects.create(
-            title="Books", content="reading list", category=self.personal
+            title="Books", content="reading list", category=self.personal, user=self.user
         )
 
     def test_list_notes(self):
@@ -83,3 +94,49 @@ class NoteAPITests(APITestCase):
         resp = self.client.get("/api/health/")
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["status"], "ok")
+
+
+class NoteOwnershipTests(APITestCase):
+    """Notes are strictly scoped to the authenticated user."""
+
+    def setUp(self):
+        self.alice = make_user("alice@example.com")
+        self.bob = make_user("bob@example.com")
+        self.alice_note = Note.objects.create(title="Alice's note", user=self.alice)
+        self.bob_note = Note.objects.create(title="Bob's note", user=self.bob)
+
+    def test_user_only_sees_own_notes(self):
+        self.client.force_authenticate(user=self.alice)
+        resp = self.client.get("/api/notes/")
+        self.assertEqual(resp.data["count"], 1)
+        self.assertEqual(resp.data["results"][0]["title"], "Alice's note")
+
+    def test_user_cannot_read_another_users_note(self):
+        self.client.force_authenticate(user=self.alice)
+        resp = self.client.get(f"/api/notes/{self.bob_note.id}/")
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_user_cannot_edit_another_users_note(self):
+        self.client.force_authenticate(user=self.alice)
+        resp = self.client.patch(
+            f"/api/notes/{self.bob_note.id}/", {"title": "Hacked"}, format="json"
+        )
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+        self.bob_note.refresh_from_db()
+        self.assertEqual(self.bob_note.title, "Bob's note")
+
+    def test_user_cannot_delete_another_users_note(self):
+        self.client.force_authenticate(user=self.alice)
+        resp = self.client.delete(f"/api/notes/{self.bob_note.id}/")
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertTrue(Note.objects.filter(pk=self.bob_note.id).exists())
+
+    def test_created_note_is_owned_by_request_user(self):
+        self.client.force_authenticate(user=self.alice)
+        resp = self.client.post("/api/notes/", {"title": "New note"}, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Note.objects.get(pk=resp.data["id"]).user, self.alice)
+
+    def test_unauthenticated_request_returns_401(self):
+        resp = self.client.get("/api/notes/")
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)

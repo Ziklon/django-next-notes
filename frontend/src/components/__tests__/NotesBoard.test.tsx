@@ -12,6 +12,14 @@ jest.mock("@/lib/api", () => ({
     deleteNote: jest.fn(),
   },
 }));
+jest.mock("@/contexts/AuthContext", () => ({
+  AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useAuth: () => ({ logOut: jest.fn(), isAuthenticated: true, isLoading: false }),
+}));
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
+}));
+
 import { api } from "@/lib/api";
 const mockApi = api as jest.Mocked<typeof api>;
 
@@ -39,15 +47,12 @@ beforeEach(() => {
 describe("NotesBoard", () => {
   it("renders the header, sidebar category and a note card", async () => {
     render(<NotesBoard />);
-    expect(
-      screen.getByRole("button", { name: /new note/i })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /new note/i })).toBeInTheDocument();
     expect(await screen.findByText("Meeting")).toBeInTheDocument();
-    // "School" appears in both the sidebar and the note card.
     expect(screen.getAllByText("School").length).toBeGreaterThan(0);
   });
 
-  it("opens the create overlay (write mode) on New Note", async () => {
+  it("opens the create overlay on New Note click", async () => {
     render(<NotesBoard />);
     await screen.findByText("Meeting");
     await userEvent.click(screen.getByRole("button", { name: /new note/i }));

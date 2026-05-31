@@ -12,6 +12,12 @@ const config: Config = {
     "^remark-gfm$": "<rootDir>/__mocks__/remark-gfm.ts",
     "^remark-emoji$": "<rootDir>/__mocks__/remark-emoji.ts",
   },
+  // Pick up integration tests in the top-level tests/ folder.
+  testMatch: [
+    "**/__tests__/**/*.[jt]s?(x)",
+    "**/?(*.)+(spec|test).[jt]s?(x)",
+    "<rootDir>/tests/**/*.test.[jt]s?(x)",
+  ],
   collectCoverageFrom: [
     "src/**/*.{ts,tsx}",
     "!src/**/*.d.ts",
