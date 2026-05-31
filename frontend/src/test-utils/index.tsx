@@ -18,6 +18,8 @@ export function makeBoardState(
     notes: [],
     selectedCategoryId: null,
     setSelectedCategoryId: jest.fn(),
+    searchQuery: "",
+    setSearchQuery: jest.fn(),
     loading: false,
     error: null,
     editing: undefined,

@@ -1,6 +1,9 @@
 # Notes App - common developer commands
 # Usage: make <target>
 
+# Prevent an active virtualenv in the shell from leaking into uv commands.
+unexport VIRTUAL_ENV
+
 .PHONY: help start up down build logs test test-backend test-frontend e2e \
         migrate seed backend-install frontend-install e2e-install clean
 
@@ -27,8 +30,8 @@ logs: ## Tail logs from all services
 ## ---- Tests ----
 test: test-backend test-frontend ## Run backend and frontend test suites
 
-test-backend: ## Run Django tests with coverage (fails under 95%)
-	cd backend && uv run coverage run manage.py test
+test-backend: ## Run Django tests against a PostgreSQL container (fails under 95%)
+	cd backend && uv run coverage run -m pytest
 	cd backend && uv run coverage report
 
 test-frontend: ## Run Jest tests with coverage (installs deps if needed)

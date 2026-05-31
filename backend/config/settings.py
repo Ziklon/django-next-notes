@@ -1,9 +1,8 @@
 """
 Django settings for the Notes app backend.
 
-The database is configured from the DATABASE_URL environment variable:
-  - unset -> SQLite (zero-config, ideal for quick local review / tests)
-  - set   -> parsed by dj-database-url (e.g. Postgres via docker compose)
+The database is configured from the DATABASE_URL environment variable.
+Defaults to a local Postgres instance matching docker compose credentials.
 """
 from pathlib import Path
 import os
@@ -39,6 +38,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "corsheaders",
     "django_filters",
+    "django.contrib.postgres",
     # Local
     "accounts",
     "notes",
@@ -78,7 +78,7 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 DATABASES = {
     "default": dj_database_url.config(
-        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        default="postgres://notes:notes@localhost:5432/notes",
         conn_max_age=600,
     )
 }
@@ -109,7 +109,6 @@ REST_FRAMEWORK = {
     "DEFAULT_FILTER_BACKENDS": [
         "django_filters.rest_framework.DjangoFilterBackend",
         "rest_framework.filters.OrderingFilter",
-        "rest_framework.filters.SearchFilter",
     ],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 50,

@@ -24,6 +24,10 @@ const config: Config = {
     // Next.js app-router entry/boilerplate (layout, page, metadata).
     "!src/app/**",
     "!src/**/__tests__/**",
+    // Next.js edge middleware — uses NextRequest/NextResponse, not testable in Jest.
+    "!src/middleware.ts",
+    // Test infrastructure — not production code.
+    "!src/test-utils/**",
   ],
   coverageReporters: ["text", "text-summary", "html", "lcov"],
   coverageThreshold: {

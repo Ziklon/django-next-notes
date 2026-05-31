@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { Category, Note, NoteInput } from "@/lib/types";
 import { api } from "@/lib/api";
 
@@ -12,6 +13,8 @@ export interface NotesBoardState {
   notes: Note[];
   selectedCategoryId: number | null;
   setSelectedCategoryId: (id: number | null) => void;
+  searchQuery: string;
+  setSearchQuery: (q: string) => void;
   loading: boolean;
   error: string | null;
   editing: EditingTarget;
@@ -23,34 +26,52 @@ export interface NotesBoardState {
 }
 
 /**
- * Owns the board's data and interactions: loading categories/notes,
- * the category filter, the editing overlay target, and create/update/delete.
- * Presentational components receive only the values and callbacks they need.
+ * Owns the board's data and interactions.
+ *
+ * Filter state (category, search) lives in the URL so the board is
+ * bookmarkable and the browser back/forward buttons work as expected.
+ * The URL is the single source of truth; React state is only used for
+ * data fetched from the API and for the note-editor overlay.
  */
 export function useNotesBoard(): NotesBoardState {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Derive filter state from URL — no local state needed for these.
+  const selectedCategoryId = searchParams.get("category")
+    ? Number(searchParams.get("category"))
+    : null;
+  const searchQuery = searchParams.get("search") ?? "";
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
-    null
-  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<EditingTarget>(undefined);
+  // Increment to force a re-fetch after note close / delete without changing the URL.
+  const [reloadKey, setReloadKey] = useState(0);
 
-  const loadCategories = useCallback(async () => {
-    setCategories(await api.listCategories());
-  }, []);
+  function setSelectedCategoryId(id: number | null) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (id != null) params.set("category", String(id));
+    else params.delete("category");
+    const qs = params.toString();
+    router.replace(qs ? `/?${qs}` : "/");
+  }
 
-  const loadNotes = useCallback(async () => {
-    setNotes(await api.listNotes(selectedCategoryId));
-  }, [selectedCategoryId]);
+  function setSearchQuery(q: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (q) params.set("search", q);
+    else params.delete("search");
+    const qs = params.toString();
+    router.replace(qs ? `/?${qs}` : "/");
+  }
 
   useEffect(() => {
     let active = true;
-    // Stale-while-revalidate: keep the current notes on screen while refetching
-    // so the grid never blanks out and flickers. "Loading..." shows only on the
-    // very first load, before any notes exist.
-    Promise.all([api.listCategories(), api.listNotes(selectedCategoryId)])
+    setLoading(true);
+
+    Promise.all([api.listCategories(), api.listNotes(selectedCategoryId, searchQuery)])
       .then(([cats, ns]) => {
         if (!active) return;
         setCategories(cats);
@@ -58,16 +79,13 @@ export function useNotesBoard(): NotesBoardState {
         setError(null);
       })
       .catch((e) =>
-        setError(e instanceof Error ? e.message : "Failed to load notes.")
+        active && setError(e instanceof Error ? e.message : "Failed to load notes.")
       )
       .finally(() => active && setLoading(false));
-    return () => {
-      active = false;
-    };
-  }, [selectedCategoryId]);
 
-  // Persist without touching board state — avoids re-rendering the board under
-  // the overlay on every autosave. The board refreshes once on close.
+    return () => { active = false; };
+  }, [selectedCategoryId, searchQuery, reloadKey]);
+
   const saveNote = useCallback(
     (data: NoteInput, id: number | null): Promise<Note> =>
       id ? api.updateNote(id, data) : api.createNote(data),
@@ -76,23 +94,22 @@ export function useNotesBoard(): NotesBoardState {
 
   const closeAndRefresh = useCallback(() => {
     setEditing(undefined);
-    void Promise.all([loadNotes(), loadCategories()]);
-  }, [loadNotes, loadCategories]);
+    setReloadKey((k) => k + 1);
+  }, []);
 
-  const deleteNote = useCallback(
-    async (note: Note) => {
-      await api.deleteNote(note.id);
-      setEditing(undefined);
-      await Promise.all([loadNotes(), loadCategories()]);
-    },
-    [loadNotes, loadCategories]
-  );
+  const deleteNote = useCallback(async (note: Note) => {
+    await api.deleteNote(note.id);
+    setEditing(undefined);
+    setReloadKey((k) => k + 1);
+  }, []);
 
   return {
     categories,
     notes,
     selectedCategoryId,
     setSelectedCategoryId,
+    searchQuery,
+    setSearchQuery,
     loading,
     error,
     editing,

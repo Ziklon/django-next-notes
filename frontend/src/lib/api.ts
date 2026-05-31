@@ -65,8 +65,11 @@ export const api = {
   listCategories: () =>
     request<Paginated<Category>>("/categories/").then((p) => p.results),
 
-  listNotes: (categoryId?: number | null) => {
-    const query = categoryId != null ? `?category=${categoryId}` : "";
+  listNotes: (categoryId?: number | null, search?: string) => {
+    const params = new URLSearchParams();
+    if (categoryId != null) params.set("category", String(categoryId));
+    if (search) params.set("search", search);
+    const query = params.toString() ? `?${params}` : "";
     return request<Paginated<Note>>(`/notes/${query}`).then((p) => p.results);
   },
 

@@ -34,6 +34,67 @@ describe("api client", () => {
     expect(fetchMock.mock.calls[0][0]).toMatch(/\/notes\/\?category=3$/);
   });
 
+  it("listNotes adds ?search= when a query is provided", async () => {
+    fetchMock.mockResolvedValue(ok({ results: [] }));
+    await api.listNotes(null, "meeting");
+    expect(fetchMock.mock.calls[0][0]).toMatch(/\/notes\/\?search=meeting$/);
+  });
+
+  it("listNotes combines category and search params", async () => {
+    fetchMock.mockResolvedValue(ok({ results: [] }));
+    await api.listNotes(2, "agenda");
+    expect(fetchMock.mock.calls[0][0]).toMatch(/category=2/);
+    expect(fetchMock.mock.calls[0][0]).toMatch(/search=agenda/);
+  });
+
+  it("retries the request with a refreshed token on 401", async () => {
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 401, json: async () => ({}) })
+      .mockResolvedValueOnce(ok({ access: "new-token" }))
+      .mockResolvedValueOnce(ok({ results: [{ id: 99 }] }));
+
+    document.cookie = "refresh_token=old-refresh; path=/";
+
+    const result = await api.listNotes();
+    expect(result).toEqual([{ id: 99 }]);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("throws and clears tokens when the refresh request itself fails", async () => {
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 401, json: async () => ({}) })
+      .mockResolvedValueOnce({ ok: false, status: 401, json: async () => ({}) });
+
+    document.cookie = "refresh_token=bad-token; path=/";
+
+    // Suppress the window.location assignment in jsdom
+    const { location } = window;
+    // @ts-expect-error – delete read-only property for test
+    delete window.location;
+    window.location = { ...location, href: "" } as Location;
+
+    await expect(api.listNotes()).rejects.toThrow(/session expired/i);
+
+    window.location = location;
+  });
+
+  it("handles a network error inside tryRefresh gracefully", async () => {
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 401, json: async () => ({}) })
+      .mockRejectedValueOnce(new Error("network down"));
+
+    document.cookie = "refresh_token=some-token; path=/";
+
+    const { location } = window;
+    // @ts-expect-error – delete read-only property for test
+    delete window.location;
+    window.location = { ...location, href: "" } as Location;
+
+    await expect(api.listNotes()).rejects.toThrow();
+
+    window.location = location;
+  });
+
   it("createNote POSTs JSON", async () => {
     fetchMock.mockResolvedValue(ok({ id: 9 }));
     const data = { title: "a", content: "", category: null };

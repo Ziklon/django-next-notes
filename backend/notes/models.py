@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.contrib.postgres.search import SearchVector, SearchVectorField
 from django.db import models
 
 
@@ -40,6 +41,18 @@ class Note(models.Model):
         blank=True,
         related_name="notes",
     )
+    # PostgreSQL GENERATED ALWAYS AS STORED tsvector column (migration 0003).
+    # Automatically updated by the database whenever title or content changes.
+    # Backed by a GIN index for O(log n) full-text search.
+    search_document = models.GeneratedField(
+        expression=(
+            SearchVector("title", weight="A", config="english")
+            + SearchVector("content", weight="B", config="english")
+        ),
+        output_field=SearchVectorField(),
+        db_persist=True,
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

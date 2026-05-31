@@ -21,6 +21,7 @@ export function clearTokens(): void {
 }
 
 function readCookie(name: string): string | null {
+  /* istanbul ignore next — SSR guard, document is always defined in jsdom */
   if (typeof document === "undefined") return null;
   const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
   return match ? decodeURIComponent(match[1]) : null;

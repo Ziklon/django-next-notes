@@ -17,11 +17,14 @@ jest.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ logOut: jest.fn(), isAuthenticated: true, isLoading: false }),
 }));
 jest.mock("next/navigation", () => ({
-  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
+  useRouter: jest.fn(() => ({ push: jest.fn(), replace: jest.fn() })),
+  useSearchParams: jest.fn(() => new URLSearchParams()),
 }));
 
 import { api } from "@/lib/api";
+import { useSearchParams } from "next/navigation";
 const mockApi = api as jest.Mocked<typeof api>;
+const mockUseSearchParams = useSearchParams as jest.Mock;
 
 const cats: Category[] = [
   { id: 1, name: "School", color: "#F4CE7B", note_count: 1, created_at: "" },
@@ -64,5 +67,13 @@ describe("NotesBoard", () => {
     await userEvent.click(await screen.findByText("Meeting"));
     expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Note content")).not.toBeInTheDocument();
+  });
+
+  it("renders the BoardSkeleton fallback while suspended", () => {
+    mockUseSearchParams.mockImplementationOnce(() => {
+      throw new Promise(() => {}); // triggers Suspense → BoardSkeleton
+    });
+    const { container } = render(<NotesBoard />);
+    expect(container.querySelector(".animate-pulse")).toBeInTheDocument();
   });
 });

@@ -17,11 +17,19 @@ dependencies = [
 ]
 
 [dependency-groups]
-# Dev-only tooling. The test suite uses Django's built-in runner.
 dev = [
     "ruff>=0.6",
     "coverage[toml]>=7.6",
+    "pytest>=9.0.3",
+    "pytest-django>=4.12.0",
+    "testcontainers[postgres]>=4.14.2",
 ]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["test_*.py"]
+python_classes = ["*Tests", "*Test"]
+python_functions = ["test_*"]
 
 [tool.uv]
 # This is a deployable application, not an installable library.

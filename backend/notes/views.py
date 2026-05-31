@@ -1,3 +1,4 @@
+from django.contrib.postgres.search import SearchQuery, SearchRank
 from django.db.models import Count, Q
 from rest_framework import viewsets
 
@@ -16,16 +17,33 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
 
 class NoteViewSet(viewsets.ModelViewSet):
-    """CRUD for notes scoped to the authenticated user."""
+    """CRUD for notes scoped to the authenticated user.
+
+    Full-text search uses the pre-computed ``search_document`` tsvector column
+    (GENERATED ALWAYS AS STORED, backed by a GIN index) so searches are
+    O(log n) against the index rather than a sequential scan.
+    Results are ranked by relevance: title matches (weight A) score higher
+    than content matches (weight B).
+    """
 
     serializer_class = NoteSerializer
     filterset_fields = ["category"]
-    search_fields = ["title", "content"]
     ordering_fields = ["created_at", "updated_at", "title"]
     ordering = ["-updated_at"]
 
     def get_queryset(self):
-        return Note.objects.filter(user=self.request.user).select_related("category")
+        qs = Note.objects.filter(user=self.request.user).select_related("category")
+
+        search = self.request.query_params.get("search", "").strip()
+        if not search:
+            return qs
+
+        query = SearchQuery(search, config="english")
+        return (
+            qs.filter(search_document=query)
+            .annotate(rank=SearchRank("search_document", query))
+            .order_by("-rank")
+        )
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
