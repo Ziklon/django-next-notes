@@ -1,0 +1,43 @@
+from django.db import models
+
+
+class Category(models.Model):
+    """A grouping for notes (e.g. "School", "Personal").
+
+    ``color`` is a hex value the frontend uses to tint note cards, keeping
+    presentation data with the category instead of hard-coding it in the UI.
+    """
+
+    name = models.CharField(max_length=80, unique=True)
+    color = models.CharField(max_length=7, default="#F4C77B")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name_plural = "categories"
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class Note(models.Model):
+    """A single note that optionally belongs to a category."""
+
+    title = models.CharField(max_length=255)
+    content = models.TextField(blank=True)
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="notes",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        # Newest first - matches the board layout in the design.
+        ordering = ["-updated_at"]
+
+    def __str__(self) -> str:
+        return self.title

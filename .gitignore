@@ -1,0 +1,29 @@
+# Python / Django
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+db.sqlite3
+staticfiles/
+.pytest_cache/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+npm-debug.log*
+
+# Env files
+.env
+.env.local
+*.local
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+coverage/
+
+# Python coverage
+.coverage
+htmlcov/

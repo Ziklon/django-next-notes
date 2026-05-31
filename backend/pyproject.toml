@@ -1,0 +1,48 @@
+[project]
+name = "notes-backend"
+version = "0.1.0"
+description = "Notes app backend - Django + DRF API (Turbo AI challenge)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "Django>=5.2,<5.3",
+    "djangorestframework>=3.15",
+    "django-cors-headers>=4.4",
+    "django-filter>=24.0",
+    "dj-database-url>=2.2",
+    "psycopg2-binary>=2.9",
+    "python-dotenv>=1.0",
+    "gunicorn>=22.0",
+]
+
+[dependency-groups]
+# Dev-only tooling. The test suite uses Django's built-in runner.
+dev = [
+    "ruff>=0.6",
+    "coverage[toml]>=7.6",
+]
+
+[tool.uv]
+# This is a deployable application, not an installable library.
+package = false
+
+[tool.coverage.run]
+branch = true
+source = ["notes", "config"]
+omit = [
+    "*/migrations/*",
+    "*/tests/*",
+    "config/wsgi.py",
+    "config/asgi.py",
+    "config/settings.py",
+    "manage.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+fail_under = 95
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+]
