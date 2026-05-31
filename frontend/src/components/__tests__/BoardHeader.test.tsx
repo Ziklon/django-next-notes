@@ -9,6 +9,7 @@ const mockLogOut = jest.fn();
 jest.mock("@/contexts/BoardContext", () => ({ useBoardContext: jest.fn() }));
 jest.mock("@/contexts/AuthContext", () => ({ useAuth: jest.fn() }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: mockPush }) }));
+jest.mock("@/hooks/useTheme", () => ({ useTheme: () => ({ isDark: false, toggle: jest.fn() }) }));
 
 import { useBoardContext } from "@/contexts/BoardContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -30,7 +31,8 @@ describe("BoardHeader", () => {
 
   it("calls logOut and redirects to /login when Log out is clicked", async () => {
     render(<BoardHeader />);
-    await userEvent.click(screen.getByRole("button", { name: /log out/i }));
+    await userEvent.click(screen.getByRole("button", { name: /open user menu/i }));
+    await userEvent.click(screen.getByRole("menuitem", { name: /log out/i }));
     expect(mockLogOut).toHaveBeenCalled();
     expect(mockPush).toHaveBeenCalledWith("/login");
   });
@@ -41,7 +43,7 @@ describe("BoardHeader", () => {
     (useBoardContext as jest.Mock).mockReturnValue(makeBoardState({ setSearchQuery }));
     render(<BoardHeader />);
     await userEvent.type(screen.getByRole("searchbox"), "hi", { delay: null });
-    jest.advanceTimersByTime(300);
+    jest.advanceTimersByTime(500);
     expect(setSearchQuery).toHaveBeenCalled();
     jest.useRealTimers();
   });

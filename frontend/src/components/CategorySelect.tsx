@@ -45,7 +45,7 @@ export default function CategorySelect({
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="flex w-56 items-center justify-between gap-2 rounded-xl border border-black/10 bg-white/70 px-4 py-2 text-sm shadow-sm hover:bg-white"
+        className="flex w-56 items-center justify-between gap-2 rounded-xl border border-[var(--border)] bg-[var(--dropdown-bg)] px-4 py-2 text-sm text-[var(--foreground)] shadow-sm hover:bg-[var(--surface)]"
       >
         <span className="flex items-center gap-2 truncate">
           <span
@@ -55,7 +55,7 @@ export default function CategorySelect({
           />
           {selected ? selected.name : "No category"}
         </span>
-        <span aria-hidden className="text-black/40">
+        <span aria-hidden className="text-[var(--muted)]">
           ▾
         </span>
       </button>
@@ -63,13 +63,13 @@ export default function CategorySelect({
       {open && (
         <ul
           role="listbox"
-          className="absolute z-10 mt-1 w-56 overflow-hidden rounded-xl border border-black/10 bg-white shadow-lg"
+          className="absolute z-10 mt-1 w-56 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--dropdown-bg)] shadow-lg"
         >
           <li role="option" aria-selected={value === null}>
             <button
               type="button"
               onClick={() => choose(null)}
-              className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm hover:bg-black/5"
+              className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-[var(--foreground)] hover:bg-[var(--surface)] transition-colors"
             >
               <span className="inline-block h-3 w-3 rounded-full bg-gray-300" />
               No category
@@ -80,7 +80,7 @@ export default function CategorySelect({
               <button
                 type="button"
                 onClick={() => choose(c.id)}
-                className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm hover:bg-black/5"
+                className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-[var(--foreground)] hover:bg-[var(--surface)] transition-colors"
               >
                 <span
                   className="inline-block h-3 w-3 rounded-full"

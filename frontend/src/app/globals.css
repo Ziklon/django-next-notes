@@ -3,11 +3,27 @@
 @tailwind utilities;
 
 :root {
-  --background: #faf2e3;     /* warm cream board */
+  --background: #faf2e3;
   --foreground: #2b2b2b;
   --muted: #6b6b6b;
-  --accent: #b07a2d;         /* "New Note" outline / accent */
+  --accent: #b07a2d;
   --card-border: rgba(0, 0, 0, 0.08);
+  --surface: rgba(0, 0, 0, 0.06);
+  --border: rgba(0, 0, 0, 0.12);
+  --dropdown-bg: #fff8ee;
+  --dropdown-shadow: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="dark"] {
+  --background: #1c1a16;
+  --foreground: #e8e0d0;
+  --muted: #9a9282;
+  --accent: #d4a050;
+  --card-border: rgba(255, 255, 255, 0.08);
+  --surface: rgba(255, 255, 255, 0.06);
+  --border: rgba(255, 255, 255, 0.12);
+  --dropdown-bg: #2a2720;
+  --dropdown-shadow: rgba(0, 0, 0, 0.4);
 }
 
 html,
@@ -88,12 +104,12 @@ body {
 .md-body code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.85em;
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--surface);
   padding: 0.1em 0.35em;
   border-radius: 4px;
 }
 .md-body pre {
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--surface);
   padding: 0.75em 1em;
   border-radius: 8px;
   overflow-x: auto;

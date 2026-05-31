@@ -6,6 +6,31 @@ from .models import Category, Note
 from .serializers import CategorySerializer, NoteSerializer
 
 
+def _build_search_query(search: str) -> SearchQuery:
+    """
+    Build a tsquery that combines full stemming for completed words with a
+    prefix match on the last (possibly incomplete) word:
+
+        "project backen" →
+            to_tsquery('english', 'project') && to_tsquery('english', 'backen:*')
+
+    This lets the GIN index handle both halves while giving search-as-you-type
+    behaviour for the word currently being typed.
+    """
+    words = search.split()
+    *completed, last = words
+
+    prefix_query = SearchQuery(f"{last}:*", search_type="raw", config="english")
+
+    if not completed:
+        return prefix_query
+
+    full_query = SearchQuery(
+        " & ".join(completed), search_type="plain", config="english"
+    )
+    return full_query & prefix_query
+
+
 class CategoryViewSet(viewsets.ModelViewSet):
     """CRUD for categories, annotated with a live note count for the sidebar."""
 
@@ -38,7 +63,7 @@ class NoteViewSet(viewsets.ModelViewSet):
         if not search:
             return qs
 
-        query = SearchQuery(search, config="english")
+        query = _build_search_query(search)
         return (
             qs.filter(search_document=query)
             .annotate(rank=SearchRank("search_document", query))

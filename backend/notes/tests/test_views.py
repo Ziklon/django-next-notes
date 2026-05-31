@@ -1,14 +1,30 @@
 from django.contrib.auth.models import User
+from django.contrib.postgres.search import CombinedSearchQuery, SearchQuery
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from notes.models import Category, Note
+from notes.views import _build_search_query
 
 
 def make_user(username="test@example.com", password="pass1234"):
     return User.objects.create_user(
         username=username, email=username, password=password
     )
+
+
+class BuildSearchQueryTests(APITestCase):
+    def test_single_word_returns_prefix_query(self):
+        q = _build_search_query("backen")
+        self.assertIsInstance(q, SearchQuery)
+
+    def test_multiple_words_combines_full_and_prefix(self):
+        q = _build_search_query("project backen")
+        self.assertIsInstance(q, CombinedSearchQuery)
+
+    def test_single_complete_word_uses_prefix(self):
+        q = _build_search_query("backend")
+        self.assertIsInstance(q, SearchQuery)
 
 
 class CategoryAPITests(APITestCase):
@@ -60,6 +76,16 @@ class NoteAPITests(APITestCase):
         resp = self.client.get("/api/notes/?search=reading")
         self.assertEqual(resp.data["count"], 1)
         self.assertEqual(resp.data["results"][0]["title"], "Books")
+
+    def test_search_prefix_matches_partial_word(self):
+        resp = self.client.get("/api/notes/?search=agen")
+        self.assertEqual(resp.data["count"], 1)
+        self.assertEqual(resp.data["results"][0]["title"], "Meeting")
+
+    def test_search_combined_full_and_prefix(self):
+        resp = self.client.get("/api/notes/?search=meeting+agen")
+        self.assertEqual(resp.data["count"], 1)
+        self.assertEqual(resp.data["results"][0]["title"], "Meeting")
 
     def test_create_note_returns_category_detail(self):
         resp = self.client.post(

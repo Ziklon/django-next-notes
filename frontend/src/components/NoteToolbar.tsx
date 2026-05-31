@@ -37,7 +37,7 @@ export default function NoteToolbar({
         <button
           type="button"
           onClick={onToggleMode}
-          className="rounded-full px-3 py-2 text-sm text-black/60 hover:bg-black/5"
+          className="rounded-full px-3 py-2 text-sm text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--foreground)] transition-colors"
         >
           {mode === "write" ? "Preview" : "Edit"}
         </button>
@@ -46,7 +46,7 @@ export default function NoteToolbar({
             type="button"
             aria-label="Delete note"
             onClick={onDelete}
-            className="rounded-full p-2 text-black/50 hover:bg-black/5 hover:text-red-600"
+            className="rounded-full p-2 text-[var(--muted)] hover:bg-[var(--surface)] hover:text-red-500 transition-colors"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v14a1 1 0 01-1 1H7a1 1 0 01-1-1V6" />
@@ -57,7 +57,7 @@ export default function NoteToolbar({
           type="button"
           aria-label="Close"
           onClick={onClose}
-          className="rounded-full p-2 text-black/60 hover:bg-black/5"
+          className="rounded-full p-2 text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--foreground)] transition-colors"
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
             <path d="M6 6l12 12M18 6L6 18" />
