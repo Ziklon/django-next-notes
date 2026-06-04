@@ -2,8 +2,8 @@ from django.contrib.postgres.search import SearchQuery, SearchRank
 from django.db.models import Count, Q
 from rest_framework import viewsets
 
-from .models import Category, Note
-from .serializers import CategorySerializer, NoteSerializer
+from .models import Category, Note, Tag
+from .serializers import CategorySerializer, NoteSerializer, TagSerializer
 
 
 def _build_search_query(search: str) -> SearchQuery:
@@ -41,6 +41,20 @@ class CategoryViewSet(viewsets.ModelViewSet):
         return Category.objects.annotate(note_count=user_note_count).order_by("name")
 
 
+class TagViewSet(viewsets.ModelViewSet):
+    """CRUD for tags scoped to the authenticated user, with note counts."""
+
+    serializer_class = TagSerializer
+
+    def get_queryset(self):
+        return Tag.objects.filter(user=self.request.user).annotate(
+            note_count=Count("notes", filter=Q(notes__user=self.request.user))
+        ).order_by("name")
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
 class NoteViewSet(viewsets.ModelViewSet):
     """CRUD for notes scoped to the authenticated user.
 
@@ -57,7 +71,15 @@ class NoteViewSet(viewsets.ModelViewSet):
     ordering = ["-updated_at"]
 
     def get_queryset(self):
-        qs = Note.objects.filter(user=self.request.user).select_related("category")
+        qs = (
+            Note.objects.filter(user=self.request.user)
+            .select_related("category")
+            .prefetch_related("tags")
+        )
+
+        tag = self.request.query_params.get("tag", "").strip()
+        if tag:
+            qs = qs.filter(tags__name=tag)
 
         search = self.request.query_params.get("search", "").strip()
         if not search:

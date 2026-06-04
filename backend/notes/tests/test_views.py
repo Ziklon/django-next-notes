@@ -3,7 +3,7 @@ from django.contrib.postgres.search import CombinedSearchQuery, SearchQuery
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from notes.models import Category, Note
+from notes.models import Category, Note, Tag
 from notes.views import _build_search_query
 
 
@@ -166,3 +166,109 @@ class NoteOwnershipTests(APITestCase):
     def test_unauthenticated_request_returns_401(self):
         resp = self.client.get("/api/notes/")
         self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class TagAPITests(APITestCase):
+    def setUp(self):
+        self.user = make_user()
+        self.client.force_authenticate(user=self.user)
+
+    def test_create_tag(self):
+        resp = self.client.post("/api/tags/", {"name": "Python"}, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(resp.data["name"], "python")
+
+    def test_list_tags_scoped_to_user(self):
+        other = make_user("other@example.com")
+        Tag.objects.create(user=self.user, name="mine")
+        Tag.objects.create(user=other, name="theirs")
+        resp = self.client.get("/api/tags/")
+        names = [t["name"] for t in resp.data["results"]]
+        self.assertIn("mine", names)
+        self.assertNotIn("theirs", names)
+
+    def test_tag_note_count(self):
+        tag = Tag.objects.create(user=self.user, name="work")
+        note = Note.objects.create(title="A", user=self.user)
+        note.tags.add(tag)
+        resp = self.client.get("/api/tags/")
+        work = next(t for t in resp.data["results"] if t["name"] == "work")
+        self.assertEqual(work["note_count"], 1)
+
+    def test_delete_tag(self):
+        tag = Tag.objects.create(user=self.user, name="tmp")
+        resp = self.client.delete(f"/api/tags/{tag.id}/")
+        self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Tag.objects.filter(pk=tag.id).exists())
+
+
+class NoteTagTests(APITestCase):
+    def setUp(self):
+        self.user = make_user()
+        self.client.force_authenticate(user=self.user)
+
+    def test_create_note_with_tags(self):
+        resp = self.client.post(
+            "/api/notes/",
+            {"title": "Tagged", "content": "", "tags": ["python", "work"]},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(sorted(resp.data["tags"]), ["python", "work"])
+        self.assertEqual(Tag.objects.filter(user=self.user).count(), 2)
+
+    def test_tags_normalised_to_lowercase(self):
+        resp = self.client.post(
+            "/api/notes/", {"title": "N", "tags": ["Python", "WORK"]}, format="json"
+        )
+        self.assertEqual(sorted(resp.data["tags"]), ["python", "work"])
+
+    def test_create_note_without_tags_returns_empty_list(self):
+        resp = self.client.post("/api/notes/", {"title": "Plain"}, format="json")
+        self.assertEqual(resp.data["tags"], [])
+
+    def test_update_replaces_tags(self):
+        note = Note.objects.create(title="N", user=self.user)
+        tag = Tag.objects.create(user=self.user, name="old")
+        note.tags.add(tag)
+        resp = self.client.put(
+            f"/api/notes/{note.id}/",
+            {"title": "N", "content": "", "category": None, "tags": ["new"]},
+            format="json",
+        )
+        self.assertEqual(resp.data["tags"], ["new"])
+
+    def test_patch_without_tags_preserves_existing(self):
+        note = Note.objects.create(title="N", user=self.user)
+        tag = Tag.objects.create(user=self.user, name="keep")
+        note.tags.add(tag)
+        resp = self.client.patch(f"/api/notes/{note.id}/", {"title": "Updated"}, format="json")
+        self.assertEqual(resp.data["tags"], ["keep"])
+
+    def test_patch_with_empty_tags_clears_them(self):
+        note = Note.objects.create(title="N", user=self.user)
+        tag = Tag.objects.create(user=self.user, name="gone")
+        note.tags.add(tag)
+        resp = self.client.patch(f"/api/notes/{note.id}/", {"tags": []}, format="json")
+        self.assertEqual(resp.data["tags"], [])
+
+    def test_filter_notes_by_tag(self):
+        tag = Tag.objects.create(user=self.user, name="python")
+        n1 = Note.objects.create(title="Python note", user=self.user)
+        n1.tags.add(tag)
+        Note.objects.create(title="Other note", user=self.user)
+        resp = self.client.get("/api/notes/?tag=python")
+        self.assertEqual(resp.data["count"], 1)
+        self.assertEqual(resp.data["results"][0]["title"], "Python note")
+
+    def test_duplicate_tag_reuses_existing(self):
+        Tag.objects.create(user=self.user, name="python")
+        self.client.post("/api/notes/", {"title": "A", "tags": ["python"]}, format="json")
+        self.client.post("/api/notes/", {"title": "B", "tags": ["python"]}, format="json")
+        self.assertEqual(Tag.objects.filter(user=self.user, name="python").count(), 1)
+
+    def test_blank_tag_name_rejected(self):
+        resp = self.client.post(
+            "/api/notes/", {"title": "N", "tags": ["  "]}, format="json"
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)

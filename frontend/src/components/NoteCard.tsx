@@ -31,6 +31,18 @@ export default function NoteCard({ note, onClick }: NoteCardProps) {
       <div className="max-h-72 overflow-hidden text-black/80">
         <Markdown>{note.content}</Markdown>
       </div>
+      {note.tags.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1">
+          {note.tags.map((tag) => (
+            <span
+              key={tag}
+              className="rounded-full bg-black/10 px-2 py-0.5 text-xs text-black/60"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
     </button>
   );
 }

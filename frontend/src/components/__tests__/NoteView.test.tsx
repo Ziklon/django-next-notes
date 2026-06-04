@@ -21,6 +21,7 @@ const note: Note = {
   content: "Life has been a whirlwind.",
   category: 1,
   category_detail: categories[0],
+  tags: [],
   created_at: "2024-07-21T20:35:00Z",
   updated_at: "2024-07-21T20:35:00Z",
 };

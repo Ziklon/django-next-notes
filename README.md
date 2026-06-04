@@ -170,11 +170,14 @@ docker compose up --build
 
 Starts Postgres, runs migrations, seeds sample data, and serves:
 
-| Service  | URL                          |
-| -------- | ---------------------------- |
-| Frontend | http://localhost:3000        |
-| API      | http://localhost:8000/api    |
-| Admin    | http://localhost:8000/admin  |
+| Service       | URL                                        |
+| ------------- | ------------------------------------------ |
+| Frontend      | http://localhost:3000                      |
+| API           | http://localhost:8000/api                  |
+| Admin         | http://localhost:8000/admin                |
+| Swagger UI    | http://localhost:8000/api/schema/swagger/  |
+| ReDoc         | http://localhost:8000/api/schema/redoc/    |
+| OpenAPI JSON  | http://localhost:8000/api/schema/          |
 
 Admin credentials when seeded: **admin / admin**
 
@@ -231,6 +234,12 @@ cd frontend && pnpm dev                           # http://localhost:3000
 | `NEXT_PUBLIC_API_URL`  | `http://localhost:8000/api`    | Backend API base URL |
 
 ## API Reference
+
+Interactive documentation is available once the stack is running:
+
+- **Swagger UI** — http://localhost:8000/api/schema/swagger/
+- **ReDoc** — http://localhost:8000/api/schema/redoc/
+- **OpenAPI 3.0 schema** (JSON/YAML) — http://localhost:8000/api/schema/
 
 All endpoints except the auth ones require a `Bearer <access_token>` header.
 

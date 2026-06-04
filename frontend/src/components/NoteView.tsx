@@ -35,6 +35,8 @@ export default function NoteView() {
         categories={categories}
         categoryId={editor.categoryId}
         onChangeCategory={editor.changeCategory}
+        tags={editor.tags}
+        onChangeTags={editor.changeTags}
         mode={editor.mode}
         onToggleMode={editor.toggleMode}
         canDelete={Boolean(editor.current)}

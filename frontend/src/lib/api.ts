@@ -1,5 +1,5 @@
 import { clearTokens, getAccessToken, getRefreshToken, setTokens } from "./auth";
-import type { Category, Note, NoteInput, Paginated } from "./types";
+import type { Category, Note, NoteInput, Paginated, Tag } from "./types";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
@@ -65,10 +65,11 @@ export const api = {
   listCategories: () =>
     request<Paginated<Category>>("/categories/").then((p) => p.results),
 
-  listNotes: (categoryId?: number | null, search?: string) => {
+  listNotes: (categoryId?: number | null, search?: string, tag?: string | null) => {
     const params = new URLSearchParams();
     if (categoryId != null) params.set("category", String(categoryId));
     if (search) params.set("search", search);
+    if (tag) params.set("tag", tag);
     const query = params.toString() ? `?${params}` : "";
     return request<Paginated<Note>>(`/notes/${query}`).then((p) => p.results);
   },
@@ -84,4 +85,7 @@ export const api = {
 
   deleteNote: (id: number) =>
     request<void>(`/notes/${id}/`, { method: "DELETE" }),
+
+  listTags: () =>
+    request<Paginated<Tag>>("/tags/").then((p) => p.results),
 };

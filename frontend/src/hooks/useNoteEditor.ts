@@ -15,6 +15,8 @@ export interface NoteEditor {
   setContent: (value: string) => void;
   categoryId: number | null;
   changeCategory: (id: number | null) => void;
+  tags: string[];
+  changeTags: (tags: string[]) => void;
   savedAt: string | null;
   error: string | null;
   mode: EditorMode;
@@ -41,6 +43,7 @@ export function useNoteEditor(
   const [categoryId, setCategoryId] = useState<number | null>(
     note?.category ?? categories[0]?.id ?? null
   );
+  const [tags, setTags] = useState<string[]>(note?.tags ?? []);
   const [savedAt, setSavedAt] = useState<string | null>(note?.updated_at ?? null);
   const [error, setError] = useState<string | null>(null);
   // Existing notes open in preview (rendered); new notes open in write mode.
@@ -51,15 +54,17 @@ export function useNoteEditor(
     title: note?.title ?? "",
     content: note?.content ?? "",
     category: note?.category ?? null,
+    tags: note?.tags ?? [] as string[],
   });
 
   const color =
     categories.find((c) => c.id === categoryId)?.color ?? DEFAULT_COLOR;
 
   const persist = useCallback(
-    async (next?: { categoryId?: number | null }) => {
+    async (next?: { categoryId?: number | null; tags?: string[] }) => {
       const cat = next?.categoryId !== undefined ? next.categoryId : categoryId;
-      const data: NoteInput = { title: title.trim(), content, category: cat };
+      const t = next?.tags !== undefined ? next.tags : tags;
+      const data: NoteInput = { title: title.trim(), content, category: cat, tags: t };
 
       // Never create/keep an empty-title note.
       if (!data.title) {
@@ -70,7 +75,8 @@ export function useNoteEditor(
       const unchanged =
         data.title === lastSaved.current.title &&
         data.content === lastSaved.current.content &&
-        data.category === lastSaved.current.category;
+        data.category === lastSaved.current.category &&
+        JSON.stringify(data.tags) === JSON.stringify(lastSaved.current.tags);
       if (unchanged) return;
 
       try {
@@ -81,19 +87,28 @@ export function useNoteEditor(
           title: saved.title,
           content: saved.content,
           category: saved.category,
+          tags: saved.tags,
         };
         setError(null);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to save.");
       }
     },
-    [title, content, categoryId, current, onSave]
+    [title, content, categoryId, tags, current, onSave]
   );
 
   const changeCategory = useCallback(
     (id: number | null) => {
       setCategoryId(id);
       void persist({ categoryId: id });
+    },
+    [persist]
+  );
+
+  const changeTags = useCallback(
+    (newTags: string[]) => {
+      setTags(newTags);
+      void persist({ tags: newTags });
     },
     [persist]
   );
@@ -115,6 +130,8 @@ export function useNoteEditor(
     setContent,
     categoryId,
     changeCategory,
+    tags,
+    changeTags,
     savedAt,
     error,
     mode,

@@ -15,6 +15,7 @@ const note: Note = {
     note_count: 3,
     created_at: "2026-01-01T00:00:00Z",
   },
+  tags: [],
   created_at: "2026-07-16T10:00:00Z",
   updated_at: "2026-07-16T10:00:00Z",
 };
@@ -38,5 +39,16 @@ describe("NoteCard", () => {
     render(<NoteCard note={note} onClick={onClick} />);
     await userEvent.click(screen.getByRole("button"));
     expect(onClick).toHaveBeenCalledWith(note);
+  });
+
+  it("renders tag chips when tags are present", () => {
+    render(<NoteCard note={{ ...note, tags: ["python", "work"] }} onClick={() => {}} />);
+    expect(screen.getByText("python")).toBeInTheDocument();
+    expect(screen.getByText("work")).toBeInTheDocument();
+  });
+
+  it("renders no tag chips when tags are empty", () => {
+    const { container } = render(<NoteCard note={note} onClick={() => {}} />);
+    expect(container.querySelectorAll(".rounded-full").length).toBe(0);
   });
 });

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { Category, Note, NoteInput } from "@/lib/types";
+import type { Category, Note, NoteInput, Tag } from "@/lib/types";
 import { api } from "@/lib/api";
 
 /** Editing target: undefined = closed, null = creating, Note = editing. */
@@ -10,9 +10,12 @@ export type EditingTarget = Note | null | undefined;
 
 export interface NotesBoardState {
   categories: Category[];
+  tags: Tag[];
   notes: Note[];
   selectedCategoryId: number | null;
   setSelectedCategoryId: (id: number | null) => void;
+  selectedTag: string | null;
+  setSelectedTag: (tag: string | null) => void;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   loading: boolean;
@@ -41,9 +44,11 @@ export function useNotesBoard(): NotesBoardState {
   const selectedCategoryId = searchParams.get("category")
     ? Number(searchParams.get("category"))
     : null;
+  const selectedTag = searchParams.get("tag") ?? null;
   const searchQuery = searchParams.get("search") ?? "";
 
   const [categories, setCategories] = useState<Category[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +60,14 @@ export function useNotesBoard(): NotesBoardState {
     const params = new URLSearchParams(searchParams.toString());
     if (id != null) params.set("category", String(id));
     else params.delete("category");
+    const qs = params.toString();
+    router.replace(qs ? `/?${qs}` : "/");
+  }
+
+  function setSelectedTag(tag: string | null) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (tag != null) params.set("tag", tag);
+    else params.delete("tag");
     const qs = params.toString();
     router.replace(qs ? `/?${qs}` : "/");
   }
@@ -71,10 +84,15 @@ export function useNotesBoard(): NotesBoardState {
     let active = true;
     setLoading(true);
 
-    Promise.all([api.listCategories(), api.listNotes(selectedCategoryId, searchQuery)])
-      .then(([cats, ns]) => {
+    Promise.all([
+      api.listCategories(),
+      api.listTags(),
+      api.listNotes(selectedCategoryId, searchQuery, selectedTag),
+    ])
+      .then(([cats, ts, ns]) => {
         if (!active) return;
         setCategories(cats);
+        setTags(ts);
         setNotes(ns);
         setError(null);
       })
@@ -84,7 +102,7 @@ export function useNotesBoard(): NotesBoardState {
       .finally(() => active && setLoading(false));
 
     return () => { active = false; };
-  }, [selectedCategoryId, searchQuery, reloadKey]);
+  }, [selectedCategoryId, selectedTag, searchQuery, reloadKey]);
 
   const saveNote = useCallback(
     (data: NoteInput, id: number | null): Promise<Note> =>
@@ -105,9 +123,12 @@ export function useNotesBoard(): NotesBoardState {
 
   return {
     categories,
+    tags,
     notes,
     selectedCategoryId,
     setSelectedCategoryId,
+    selectedTag,
+    setSelectedTag,
     searchQuery,
     setSearchQuery,
     loading,

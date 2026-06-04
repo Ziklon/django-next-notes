@@ -1,10 +1,11 @@
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { useNotesBoard } from "@/hooks/useNotesBoard";
-import type { Category, Note } from "@/lib/types";
+import type { Category, Note, Tag } from "@/lib/types";
 
 jest.mock("@/lib/api", () => ({
   api: {
     listCategories: jest.fn(),
+    listTags: jest.fn(),
     listNotes: jest.fn(),
     createNote: jest.fn(),
     updateNote: jest.fn(),
@@ -25,6 +26,7 @@ const mockApi = api as jest.Mocked<typeof api>;
 const cats: Category[] = [
   { id: 1, name: "School", color: "#F4CE7B", note_count: 1, created_at: "" },
 ];
+const tags: Tag[] = [{ id: 1, name: "work", note_count: 1 }];
 const notes: Note[] = [
   {
     id: 10,
@@ -32,6 +34,7 @@ const notes: Note[] = [
     content: "agenda",
     category: 1,
     category_detail: cats[0],
+    tags: [],
     created_at: "",
     updated_at: "",
   },
@@ -40,6 +43,7 @@ const notes: Note[] = [
 beforeEach(() => {
   jest.clearAllMocks();
   mockApi.listCategories.mockResolvedValue(cats);
+  mockApi.listTags.mockResolvedValue(tags);
   mockApi.listNotes.mockResolvedValue(notes);
   mockApi.createNote.mockResolvedValue(notes[0]);
   mockApi.updateNote.mockResolvedValue(notes[0]);
@@ -58,7 +62,7 @@ describe("useNotesBoard", () => {
     const { result } = await renderLoaded();
     expect(result.current.categories).toEqual(cats);
     expect(result.current.notes).toEqual(notes);
-    expect(mockApi.listNotes).toHaveBeenCalledWith(null, "");
+    expect(mockApi.listNotes).toHaveBeenCalledWith(null, "", null);
     expect(result.current.error).toBeNull();
   });
 
@@ -69,7 +73,7 @@ describe("useNotesBoard", () => {
     const { result } = await renderLoaded();
     expect(result.current.selectedCategoryId).toBe(2);
     expect(result.current.searchQuery).toBe("hello");
-    expect(mockApi.listNotes).toHaveBeenCalledWith(2, "hello");
+    expect(mockApi.listNotes).toHaveBeenCalledWith(2, "hello", null);
   });
 
   it("setSelectedCategoryId updates the URL with the category param", async () => {
@@ -84,6 +88,19 @@ describe("useNotesBoard", () => {
     );
     const { result } = await renderLoaded();
     act(() => result.current.setSelectedCategoryId(null));
+    expect(mockReplace).toHaveBeenCalledWith("/");
+  });
+
+  it("setSelectedTag updates the URL with the tag param", async () => {
+    const { result } = await renderLoaded();
+    act(() => result.current.setSelectedTag("python"));
+    expect(mockReplace).toHaveBeenCalledWith("/?tag=python");
+  });
+
+  it("setSelectedTag(null) removes the tag param from the URL", async () => {
+    (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams("tag=python"));
+    const { result } = await renderLoaded();
+    act(() => result.current.setSelectedTag(null));
     expect(mockReplace).toHaveBeenCalledWith("/");
   });
 

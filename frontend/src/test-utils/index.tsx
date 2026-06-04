@@ -15,9 +15,12 @@ export function makeBoardState(
 ): NotesBoardState {
   return {
     categories: [],
+    tags: [],
     notes: [],
     selectedCategoryId: null,
     setSelectedCategoryId: jest.fn(),
+    selectedTag: null,
+    setSelectedTag: jest.fn(),
     searchQuery: "",
     setSearchQuery: jest.fn(),
     loading: false,

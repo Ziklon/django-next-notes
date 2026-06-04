@@ -3,8 +3,15 @@
 import { useBoardContext } from "@/contexts/BoardContext";
 
 export default function Sidebar() {
-  const { categories, selectedCategoryId, loading, setSelectedCategoryId } =
-    useBoardContext();
+  const {
+    categories,
+    selectedCategoryId,
+    setSelectedCategoryId,
+    tags,
+    selectedTag,
+    setSelectedTag,
+    loading,
+  } = useBoardContext();
 
   return (
     <aside className="w-full lg:w-56 shrink-0">
@@ -45,6 +52,35 @@ export default function Sidebar() {
           );
         })}
       </ul>
+
+      {tags.length > 0 && (
+        <>
+          <h2 className="mt-6 font-semibold text-sm mb-4">Tags</h2>
+          <ul className="space-y-3">
+            {tags.map((tag) => {
+              const active = tag.name === selectedTag;
+              return (
+                <li key={tag.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTag(active ? null : tag.name)}
+                    aria-pressed={active}
+                    className={`flex w-full items-center justify-between rounded-md px-2 py-1 text-sm transition-colors ${
+                      active ? "bg-black/5 font-medium" : "hover:bg-black/5"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="text-[var(--muted)]">#</span>
+                      {tag.name}
+                    </span>
+                    <span className="text-[var(--muted)]">{tag.note_count}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
     </aside>
   );
 }

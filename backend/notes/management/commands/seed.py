@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from notes.models import Category, Note
+from notes.models import Category, Note, Tag
 
 DEMO_EMAIL = "demo@notes.app"
 DEMO_PASSWORD = "demo1234"
@@ -22,6 +22,7 @@ NOTES = [
         "category": "Random Thoughts",
         "days_ago": 0,
         "content": "- Milk\n- Eggs\n- Bread\n- Bananas\n- Spinach",
+        "tags": ["shopping", "home"],
     },
     {
         "title": "Meeting with Team",
@@ -31,12 +32,14 @@ NOTES = [
             "Discuss project timeline and milestones. Review budget and "
             "resource allocation. Address any blockers and plan next steps."
         ),
+        "tags": ["work", "planning"],
     },
     {
         "title": "Note Title",
         "category": "School",
         "days_ago": 12,
         "content": "Note content...",
+        "tags": [],
     },
     {
         "title": "Vacation Ideas",
@@ -48,6 +51,7 @@ NOTES = [
             "- Go hiking in the Swiss Alps\n"
             "- Relax in the hot springs of Iceland"
         ),
+        "tags": ["travel", "ideas"],
     },
     {
         "title": "Note Title",
@@ -135,6 +139,9 @@ class Command(BaseCommand):
             if was_created:
                 ts = now - timedelta(days=n["days_ago"])
                 Note.objects.filter(pk=note.pk).update(created_at=ts, updated_at=ts)
+                for tag_name in n.get("tags", []):
+                    tag, _ = Tag.objects.get_or_create(user=demo_user, name=tag_name)
+                    note.tags.add(tag)
                 created += 1
 
         self.stdout.write(

@@ -22,6 +22,26 @@ class Category(models.Model):
         return self.name
 
 
+class Tag(models.Model):
+    """A free-form label scoped to a single user."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="tags",
+    )
+    name = models.CharField(max_length=50)
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(fields=["user", "name"], name="unique_tag_per_user")
+        ]
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class Note(models.Model):
     """A single note that optionally belongs to a category."""
 
@@ -41,6 +61,7 @@ class Note(models.Model):
         blank=True,
         related_name="notes",
     )
+    tags = models.ManyToManyField(Tag, blank=True, related_name="notes")
     # PostgreSQL GENERATED ALWAYS AS STORED tsvector column (migration 0003).
     # Automatically updated by the database whenever title or content changes.
     # Backed by a GIN index for O(log n) full-text search.

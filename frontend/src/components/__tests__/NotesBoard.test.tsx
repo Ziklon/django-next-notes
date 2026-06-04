@@ -6,6 +6,7 @@ import type { Category, Note } from "@/lib/types";
 jest.mock("@/lib/api", () => ({
   api: {
     listCategories: jest.fn(),
+    listTags: jest.fn(),
     listNotes: jest.fn(),
     createNote: jest.fn(),
     updateNote: jest.fn(),
@@ -36,6 +37,7 @@ const notes: Note[] = [
     content: "agenda",
     category: 1,
     category_detail: cats[0],
+    tags: [],
     created_at: "2024-07-16T10:00:00Z",
     updated_at: "2024-07-16T10:00:00Z",
   },
@@ -44,6 +46,7 @@ const notes: Note[] = [
 beforeEach(() => {
   jest.clearAllMocks();
   mockApi.listCategories.mockResolvedValue(cats);
+  mockApi.listTags.mockResolvedValue([]);
   mockApi.listNotes.mockResolvedValue(notes);
 });
 

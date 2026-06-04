@@ -40,12 +40,14 @@ INSTALLED_APPS = [
     "corsheaders",
     "django_filters",
     "django.contrib.postgres",
+    "drf_spectacular",
     # Local
     "accounts",
     "notes",
 ]
 
 MIDDLEWARE = [
+    "config.middleware.TraceIdMiddleware",
     "config.middleware.RequestTimingMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
@@ -117,6 +119,14 @@ REST_FRAMEWORK = {
         "rest_framework.renderers.JSONRenderer",
         "rest_framework.renderers.BrowsableAPIRenderer",
     ],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Notes API",
+    "DESCRIPTION": "REST API for the Notes application",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
 }
 
 SIMPLE_JWT = {
@@ -133,10 +143,10 @@ LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "simple": {"format": "[{asctime}] {message}", "style": "{"},
+        "json": {"()": "config.middleware.JsonFormatter"},
     },
     "handlers": {
-        "console": {"class": "logging.StreamHandler", "formatter": "simple"},
+        "console": {"class": "logging.StreamHandler", "formatter": "json"},
     },
     "loggers": {
         "api.timing": {
