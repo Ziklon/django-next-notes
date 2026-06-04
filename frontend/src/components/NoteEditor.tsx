@@ -21,6 +21,7 @@ export default function NoteEditor({
   onBlur,
 }: NoteEditorProps) {
   const titleRef = useRef<HTMLTextAreaElement>(null);
+  const contentRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-grow the title textarea to fit its content.
   useEffect(() => {
@@ -31,12 +32,20 @@ export default function NoteEditor({
     }
   }, [title]);
 
+  function handleTitleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      contentRef.current?.focus();
+    }
+  }
+
   return (
     <>
       <textarea
         ref={titleRef}
         value={title}
         onChange={(e) => onTitleChange(e.target.value)}
+        onKeyDown={handleTitleKeyDown}
         onBlur={onBlur}
         rows={1}
         aria-label="Note title"
@@ -51,6 +60,7 @@ export default function NoteEditor({
       )}
 
       <textarea
+        ref={contentRef}
         value={content}
         onChange={(e) => onContentChange(e.target.value)}
         onBlur={onBlur}
