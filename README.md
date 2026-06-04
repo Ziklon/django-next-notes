@@ -6,14 +6,17 @@ A monorepo notes board application built with a **Django + Django REST Framework
 
 - **CRUD Notes** — create, read, update, and delete notes with title and markdown content
 - **Categories** — organize notes into color-coded categories managed from the database
-- **Category Filtering** — sidebar with live note counts per category; click to filter the board
-- **Full-Screen Editor** — opens on click with a category dropdown, "Last Edited" timestamp, and autosave on blur/close
+- **Tags** — free-form, per-user tags on notes; chip input in the editor, filter from the sidebar
+- **Category & Tag Filtering** — sidebar with live note counts; click to filter the board
+- **Full-Screen Editor** — opens on click with a category dropdown, tag input, "Last Edited" timestamp, and autosave on blur/close
 - **Markdown Support** — GitHub-flavored markdown with emoji shortcodes (`:tada:`) via `react-markdown` + `remark-gfm` + `remark-emoji`
 - **Masonry Layout** — CSS-column staggered card grid with no JS layout library
 - **Full-Text Search** — Postgres `tsvector` GIN index with prefix matching (`backen` finds "backend"); results ranked by relevance
 - **User Authentication** — JWT-based register/login with per-user note scoping
 - **Dark Mode** — toggleable via the user menu; preference persisted in `localStorage`
-- **Django Admin** — built-in admin panel for managing notes and categories
+- **API Documentation** — auto-generated OpenAPI 3.0 schema via `drf-spectacular`; Swagger UI + ReDoc served at `/api/schema/`
+- **Structured Request Logging** — every `/api/` request emits a JSON log line with trace ID, user, method, path, status, and duration
+- **Django Admin** — built-in admin panel for managing notes, categories, and tags
 
 ## Tech Stack
 
@@ -43,10 +46,11 @@ django-next-notes/
 │       ├── app/                # App Router entry (layout, page, globals.css)
 │       ├── components/         # BoardHeader, NotesGrid, Sidebar, NoteCard,
 │       │                       # NoteView, NoteToolbar, NoteEditor, NotePreview,
-│       │                       # CategorySelect, Markdown
+│       │                       # CategorySelect, TagInput, Markdown
 │       ├── hooks/              # useNotesBoard, useNoteEditor (state + logic)
 │       └── lib/                # typed API client, types, date helpers
 ├── docker-compose.yml          # Postgres + backend + frontend, one command
+├── docker-compose.override.yml # hot-reload overrides (volume mounts + runserver)
 ├── Makefile                    # common dev commands
 └── README.md
 ```
@@ -66,9 +70,10 @@ graph TD
 
     subgraph Backend["Django + DRF — localhost:8000"]
         Auth["accounts/\nregister · login · refresh"]
-        Notes["notes/\nNoteViewSet · CategoryViewSet"]
+        Notes["notes/\nNoteViewSet · CategoryViewSet · TagViewSet"]
         Search["_build_search_query\nprefix + full-text"]
-        Middleware["RequestTimingMiddleware\nX-Response-Time-ms"]
+        Middleware["TraceIdMiddleware → RequestTimingMiddleware\nX-Trace-Id · X-Response-Time-ms · JSON logs"]
+        Docs["drf-spectacular\n/api/schema/ · swagger · redoc"]
     end
 
     subgraph DB["PostgreSQL"]
@@ -78,7 +83,7 @@ graph TD
 
     Browser -->|"HTTP + JWT Bearer"| Frontend
     AuthCtx -->|"fetch /api/auth/"| Auth
-    Hooks -->|"fetch /api/notes/ · /api/categories/"| Notes
+    Hooks -->|"fetch /api/notes/ · /api/categories/ · /api/tags/"| Notes
     Notes --> Search
     Search -->|"@@ tsquery"| GIN
     GIN --- NoteTable
@@ -96,20 +101,21 @@ Next.js (App Router)                        localhost:3000
   ├── app/                                  layout, auth pages
   ├── contexts/
   │   ├── AuthContext      JWT tokens, login/signup/logout
-  │   └── BoardContext     shared board state (notes, categories, editing)
+  │   └── BoardContext     shared board state (notes, categories, tags, editing)
   ├── hooks/
-  │   ├── useNotesBoard    data fetching, filtering, CRUD operations
-  │   ├── useNoteEditor    per-note form state, autosave, mode toggle
+  │   ├── useNotesBoard    data fetching, category/tag filtering, CRUD operations
+  │   ├── useNoteEditor    per-note form state, autosave, tag management, mode toggle
   │   └── useTheme         dark mode toggle + localStorage persistence
   └── components/
       ├── BoardHeader      layout only — composes SearchBar + UserMenu + New Note
       ├── SearchBar        debounced input → URL param → API query
       ├── UserMenu         profile dropdown (dark mode toggle, logout)
-      ├── Sidebar          category list with live note counts
+      ├── Sidebar          categories + tags with live note counts; click to filter
       ├── NotesGrid        masonry card grid
-      ├── NoteCard         single card (color from category)
+      ├── NoteCard         single card (color from category, tag chips)
       ├── NoteView         full-screen overlay
-      ├── NoteToolbar      category picker, preview/edit toggle, delete, close
+      ├── NoteToolbar      category picker, tag input, preview/edit toggle, delete, close
+      ├── TagInput         chip-based free-form tag editor
       ├── NoteEditor       title + content inputs
       └── NotePreview      markdown renderer
   │
@@ -117,19 +123,22 @@ Next.js (App Router)                        localhost:3000
   ▼
 Django + DRF                                localhost:8000
   ├── config/
-  │   ├── settings.py      env-driven config (DATABASE_URL, JWT, CORS)
-  │   └── middleware.py    request timing → X-Response-Time-ms header
+  │   ├── settings.py      env-driven config (DATABASE_URL, JWT, CORS, drf-spectacular)
+  │   └── middleware.py    TraceIdMiddleware → RequestTimingMiddleware → JSON logs
   ├── accounts/            register / login / token refresh endpoints
   └── notes/
-      ├── models.py        Category, Note (search_document GeneratedField)
-      ├── serializers.py   category_detail nested read-only on Note
-      ├── views.py         NoteViewSet — prefix + full-text search query builder
+      ├── models.py        Category, Tag (per-user), Note (tags M2M, search_document)
+      ├── serializers.py   TagNamesField, category_detail + tags on Note responses
+      ├── views.py         NoteViewSet · CategoryViewSet · TagViewSet
+      │                    ?tag= filter, prefetch_related("tags")
       └── management/
-          └── seed.py      idempotent sample data loader
+          └── seed.py      idempotent sample data loader (with tags)
   │
   ▼
 PostgreSQL                                  port 5432
-  ├── notes_note.search_document   GENERATED ALWAYS AS STORED tsvector
+  ├── notes_tag                             per-user tags (unique constraint user+name)
+  ├── notes_note_tags                       Note ↔ Tag M2M join table
+  ├── notes_note.search_document            GENERATED ALWAYS AS STORED tsvector
   └── notes_note_search_document_gin        GIN index for O(log n) search
 ```
 
@@ -251,10 +260,12 @@ All endpoints except the auth ones require a `Bearer <access_token>` header.
 | `POST`             | `/api/auth/token/refresh/`  | No   | Refresh access token                  |
 | `GET` / `POST`     | `/api/categories/`          | Yes  | List (with `note_count`) / create     |
 | `GET/PUT/PATCH/DEL`| `/api/categories/{id}/`     | Yes  | Retrieve / update / delete            |
+| `GET` / `POST`     | `/api/tags/`                | Yes  | List user's tags (with `note_count`) / create |
+| `GET/PUT/PATCH/DEL`| `/api/tags/{id}/`           | Yes  | Retrieve / update / delete            |
 | `GET` / `POST`     | `/api/notes/`               | Yes  | List (scoped to user) / create        |
 | `GET/PUT/PATCH/DEL`| `/api/notes/{id}/`          | Yes  | Retrieve / update / delete            |
 
-Notes query params: `?category=<id>`, `?search=<text>` (prefix + full-text), `?ordering=updated_at|created_at|title`.
+Notes query params: `?category=<id>`, `?tag=<name>`, `?search=<text>` (prefix + full-text), `?ordering=updated_at|created_at|title`.
 
 Responses are paginated (`{ count, next, previous, results }`, default page size 50).
 
@@ -285,7 +296,16 @@ Every `/api/` request is timed — logged to console as `METHOD path -> status (
 | `created_at`      | datetime    | auto                                                       |
 | `updated_at`      | datetime    | auto, default ordering (`-updated_at`)                     |
 
-The serializer exposes both `category` (writable PK) and `category_detail` (nested read-only) so the client renders color/name without an extra request.
+The serializer exposes both `category` (writable PK) and `category_detail` (nested read-only) so the client renders color/name without an extra request. Tags are exposed as a sorted list of name strings (`["python", "work"]`); writing accepts the same format and auto-creates tags that don't exist. PATCH without `tags` preserves existing tags; PATCH with `"tags": []` clears them.
+
+### Tag
+
+| Field        | Type        | Notes                                  |
+| ------------ | ----------- | -------------------------------------- |
+| `id`         | integer     | auto                                   |
+| `user`       | FK          | `CASCADE` on user delete; user-scoped  |
+| `name`       | string(50)  | normalised to lowercase; unique per user |
+| `note_count` | integer     | annotated read-only field              |
 
 ## Tests
 
@@ -309,5 +329,11 @@ make test-frontend   # frontend only (Jest + coverage, 95% minimum enforced)
 - **Hooks/components split** — state and side effects live in `useNotesBoard`, `useNoteEditor`, and `useTheme`; components are thin and independently testable.
 - **CSS-column masonry** — reproduces the staggered card layout without a JS layout library.
 - **Autosave** — note changes save on blur and on editor close; creating a note skips empty titles and promotes a new note to an existing one on first save.
+- **Tags as free-form strings on the wire** — the API accepts and returns tags as `["python", "work"]` rather than PKs, auto-creating `Tag` rows via `get_or_create`. This keeps the client simple and avoids a separate tag-fetch before editing.
+- **Per-user tag namespace** — `Tag` has a `UniqueConstraint(user, name)`, so two users can both have a "work" tag without collision. Tags are scoped the same way notes are.
+- **`TagNamesField` custom DRF field** — DRF's built-in `ListField` iterates the value directly and cannot handle a M2M `ManyRelatedManager`. A thin custom field calls `.values_list("name", flat=True)` on read and returns plain strings on write, keeping the serializer simple.
+- **Trace ID middleware** — `TraceIdMiddleware` runs first in the stack, propagating or generating a UUID4 per request. `RequestTimingMiddleware` reads it to enrich the structured JSON log line, so every request is traceable across logs.
+- **OpenAPI schema via `drf-spectacular`** — auto-generates an OpenAPI 3.0 spec from DRF viewsets. Swagger UI and ReDoc are served at runtime, so the docs are always in sync with the code.
+- **Hot-reload via `docker-compose.override.yml`** — source folders are volume-mounted into containers; the backend switches to `runserver` and the frontend uses `WATCHPACK_POLLING=true` for reliable change detection on macOS. The override is auto-merged by Docker Compose and ignored in production deploys that pass `-f docker-compose.yml` explicitly.
 - **Request timing middleware** — logs and exposes response time on every API call for quick inspection.
 - **Test coverage** — backend 100% coverage (pytest + testcontainers); frontend 95%+ across statements, branches, functions, and lines.
